@@ -27,7 +27,17 @@ The AesEncryptamajig class provides 2 methods: 1 for encrypting and 1 for decryp
 
 If you need a new key and IV, simply new up the AesManaged class from the BCL (Base Class Library), and grab the Key and IV from that instance.  **Every time you create a new instance of the AesManaged class, you get a new key and IV.**  Make sure you are storing them somewhere if you want to decrypt your data!
 
-# Disclaimer
+## Encryption Resources
+
+Do you want to know more?
+
+- [Encryption](http://en.wikipedia.org/wiki/Encryption)
+- [Keys](http://en.wikipedia.org/wiki/Key_(cryptography))
+- [Initialization Vectors](http://en.wikipedia.org/wiki/Initialization_vector)
+- [Block Cipher Modes](http://en.wikipedia.org/wiki/Block_cipher_modes_of_operation)
+- [AES](http://en.wikipedia.org/wiki/Advanced_Encryption_Standard)
+
+## Disclaimer
 
 I am not a security expert but I think I got the big things right.  **If you are an expert** and you see that I'm doing something wrong, please tell me!
 
