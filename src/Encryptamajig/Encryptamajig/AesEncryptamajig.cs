@@ -11,7 +11,97 @@
     /// </summary>
     public class AesEncryptamajig
     {
+        // Remove the static salt and incorporate an easy method for managing it.
         private static readonly byte[] _salt = new byte[] { 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 };
+
+        /// <summary>
+        /// Encrypts the plainText input using the given Key and IV.
+        /// You can generate Keys and IV's from the GetKey() and GetIv() methods.
+        /// </summary>
+        /// <param name="plainText"></param>
+        /// <param name="key"></param>
+        /// <param name="iv"></param>
+        /// <returns></returns>
+        public static string Encrypt(string plainText, string key, string iv, string salt)
+        {
+            if (string.IsNullOrEmpty(plainText))
+                throw new ArgumentNullException("plainText");
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentNullException("key");
+            if (string.IsNullOrEmpty(iv))
+                throw new ArgumentNullException("iv");
+            if (string.IsNullOrEmpty(salt))
+                throw new ArgumentNullException("salt");
+
+            // TODO: Convert the salt to a byte array
+            var saltBytes = new byte[0];
+
+            using (var aesManaged = new AesManaged())
+            using (var deriveBytes = new Rfc2898DeriveBytes(key, saltBytes))
+            {
+                // Derive the Key and the IV using Rfc2898DeriveBytes to make sure we get the same values given the same inputs
+                var keyBytes = deriveBytes.GetBytes(aesManaged.KeySize);
+                var ivBytes = deriveBytes.GetBytes(aesManaged.BlockSize);
+
+                // Create an encryptor to perform the stream transform.
+                var encryptor = aesManaged.CreateEncryptor(keyBytes, ivBytes);
+
+                // Create the streams used for encryption.
+                using (var memoryStream = new MemoryStream())
+                using (var cryptoStream = new CryptoStream(memoryStream, encryptor, CryptoStreamMode.Write))
+                using (var streamWriter = new StreamWriter(cryptoStream))
+                {
+                    // Send the data through the StreamWriter, through the CryptoStream, to the underlying MemoryStream
+                    streamWriter.Write(plainText);
+
+                    // Return the encrypted bytes from the memory stream, in Base64 form so we can send it right to a database (if we want).
+                    return Convert.ToBase64String(memoryStream.ToArray());
+                }
+            }
+        }
+
+        /// <summary>
+        /// Decrypts the cipherText using the Key and the IV.
+        /// </summary>
+        /// <param name="cipherText"></param>
+        /// <param name="key"></param>
+        /// <param name="iv"></param>
+        /// <returns></returns>
+        public static string Decrypt(string cipherText, string key, string iv, string salt)
+        {
+            if (string.IsNullOrEmpty(cipherText))
+                throw new ArgumentNullException("cipherText");
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentNullException("key");
+            if (string.IsNullOrEmpty(iv))
+                throw new ArgumentNullException("iv");
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentNullException("salt");
+
+            // TODO: Convert the salt to a byte array
+            var saltBytes = new byte[0];
+
+            using (var aesManaged = new AesManaged())
+            using (var deriveBytes = new Rfc2898DeriveBytes(key, saltBytes))
+            {
+                // Derive the Key and the IV using Rfc2898DeriveBytes to make sure we get the same values given the same inputs
+                var keyBytes = deriveBytes.GetBytes(aesManaged.KeySize);
+                var ivBytes = deriveBytes.GetBytes(aesManaged.BlockSize);
+
+                // Create a decrytor to perform the stream transform.
+                var decryptor = aesManaged.CreateDecryptor(keyBytes, ivBytes);
+
+                // Create the streams used for decryption.
+                using (var memoryStream = new MemoryStream(Convert.FromBase64String(cipherText)))
+                using (var cryptoStream = new CryptoStream(memoryStream, decryptor, CryptoStreamMode.Read))
+                using (var streamReader = new StreamReader(cryptoStream))
+                {
+                    // Read the decrypted bytes from the decrypting stream
+                    // and place them in a string.
+                    return streamReader.ReadToEnd();
+                }
+            }
+        }
 
         /// <summary>
         /// This will convert the plain text key to a byte array for use with the Encrypt/Decrypt methods.
@@ -20,7 +110,7 @@
         /// </summary>
         /// <param name="key"></param>
         /// <returns></returns>
-        public static byte[] GetKey(string key)
+        private static byte[] GetKey(string key)
         {
             var deriveBytes = new Rfc2898DeriveBytes(key, _salt);
 
@@ -35,105 +125,12 @@
         /// </summary>
         /// <param name="text"></param>
         /// <returns></returns>
-        public static byte[] GetIv(string text)
+        private static byte[] GetIv(string text)
         {
             var deriveBytes = new Rfc2898DeriveBytes(text, _salt);
 
             return deriveBytes.GetBytes(16);
         }
 
-        /// <summary>
-        /// Encrypts the plainText input using the given Key and IV.
-        /// You can generate Keys and IV's from the GetKey() and GetIv() methods.
-        /// </summary>
-        /// <param name="plainText"></param>
-        /// <param name="key"></param>
-        /// <param name="iv"></param>
-        /// <returns></returns>
-        public static string Encrypt(string plainText, byte[] key, byte[] iv)
-        {
-            if (string.IsNullOrEmpty(plainText))
-                throw new ArgumentNullException("plainText");
-            if (key == null || key.Length <= 0)
-                throw new ArgumentNullException("key");
-            if (iv == null || iv.Length <= 0)
-                throw new ArgumentNullException("iv");
-
-            MemoryStream memoryStream = null;
-            RijndaelManaged aesAlg = null;
-
-            try
-            {
-                // Create the encryption algorithm object with the specified key and IV.
-                aesAlg = new RijndaelManaged();
-
-                // Create an encryptor to perform the stream transform.
-                var encryptor = aesAlg.CreateEncryptor(key, iv);
-
-                // Create the streams used for encryption.
-                memoryStream = new MemoryStream();
-
-                using (var cryptoStream = new CryptoStream(memoryStream, encryptor, CryptoStreamMode.Write))
-                using (var streamWriter = new StreamWriter(cryptoStream))
-                {
-                    //Write all data to the stream.
-                    streamWriter.Write(plainText);
-                }
-            }
-            finally
-            {
-                if (aesAlg != null)
-                    aesAlg.Clear();
-            }
-
-            // Return the encrypted bytes from the memory stream.
-            return Convert.ToBase64String(memoryStream.ToArray());
-        }
-
-        /// <summary>
-        /// Decrypts the cipherText using the Key and the IV.
-        /// </summary>
-        /// <param name="cipherText"></param>
-        /// <param name="key"></param>
-        /// <param name="iv"></param>
-        /// <returns></returns>
-        public static string Decrypt(string cipherText, byte[] key, byte[] iv)
-        {
-            if (cipherText == null || cipherText.Length <= 0)
-                throw new ArgumentNullException("cipherText");
-            if (key == null || key.Length <= 0)
-                throw new ArgumentNullException("key");
-            if (iv == null || iv.Length <= 0)
-                throw new ArgumentNullException("iv");
-
-            RijndaelManaged aesAlg = null;
-            string plaintext = null;
-
-            try
-            {
-                // Create a the encryption algorithm object with the specified key and IV.
-                aesAlg = new RijndaelManaged();
-
-                // Create a decrytor to perform the stream transform.
-                var decryptor = aesAlg.CreateDecryptor(key, iv);
-
-                // Create the streams used for decryption.
-                using (var memoryStream = new MemoryStream(Convert.FromBase64String(cipherText)))
-                using (var cryptoStream = new CryptoStream(memoryStream, decryptor, CryptoStreamMode.Read))
-                using (var streamReader = new StreamReader(cryptoStream))
-                {
-                    // Read the decrypted bytes from the decrypting stream
-                    // and place them in a string.
-                    plaintext = streamReader.ReadToEnd();
-                }
-            }
-            finally
-            {
-                if (aesAlg != null)
-                    aesAlg.Clear();
-            }
-
-            return plaintext;
-        }
     }
 }
