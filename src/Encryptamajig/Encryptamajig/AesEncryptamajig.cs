@@ -14,7 +14,7 @@
     public class AesEncryptamajig
     {
         // 16 bytes = 128 bits
-        private static readonly int _saltSize = 16;
+        private static readonly int _saltSize = 32;
 
         /// <summary>
         /// Encrypts the plainText input using the given Key.
@@ -83,9 +83,10 @@
                 // Derive the previous IV from the Key and Salt
                 var keyBytes = keyDerivationFunction.GetBytes(32);
                 var ivBytes = keyDerivationFunction.GetBytes(16);
-
+                
                 // Create a decrytor to perform the stream transform.
                 // Create the streams used for decryption.
+                // The default Cipher Mode is CBC and the Padding is PKCS7 which are both good
                 using (var aesManaged = new AesManaged())
                 using (var decryptor = aesManaged.CreateDecryptor(keyBytes, ivBytes))
                 using (var memoryStream = new MemoryStream(ciphertextBytes))
