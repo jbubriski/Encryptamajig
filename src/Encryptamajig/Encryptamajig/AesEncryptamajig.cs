@@ -13,7 +13,6 @@
     /// </summary>
     public class AesEncryptamajig
     {
-        // 16 bytes = 128 bits
         private static readonly int _saltSize = 32;
 
         /// <summary>
