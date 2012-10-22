@@ -1,6 +1,7 @@
 ﻿namespace Encryptamajig
 {
     using System;
+    using System.Diagnostics.CodeAnalysis;
     using System.IO;
     using System.Linq;
     using System.Security.Cryptography;
@@ -13,7 +14,7 @@
     /// </summary>
     public class AesEncryptamajig
     {
-        private static readonly int _saltSize = 32;
+        private static readonly int SaltSize = 32;
 
         /// <summary>
         /// Encrypts the plainText input using the given Key.
@@ -24,77 +25,115 @@
         /// <returns>The salt and the ciphertext, Base64 encoded for convenience.</returns>
         public static string Encrypt(string plainText, string key)
         {
-            if (string.IsNullOrEmpty(plainText))
-                throw new ArgumentNullException("plainText");
-            if (string.IsNullOrEmpty(key))
-                throw new ArgumentNullException("key");
-
+            Validate(plainText, "plainText");
+            Validate(key, "key");
+        
             // Derive a new Salt and IV from the Key
-            using (var keyDerivationFunction = new Rfc2898DeriveBytes(key, _saltSize))
-            {
-                var saltBytes = keyDerivationFunction.Salt;
-                var keyBytes = keyDerivationFunction.GetBytes(32);
-                var ivBytes = keyDerivationFunction.GetBytes(16);
+            var bytes = DeriveBytes(key);
 
-                // Create an encryptor to perform the stream transform.
-                // Create the streams used for encryption.
-                using (var aesManaged = new AesManaged())
-                using (var encryptor = aesManaged.CreateEncryptor(keyBytes, ivBytes))
-                using (var memoryStream = new MemoryStream())
-                {
-                    using (var cryptoStream = new CryptoStream(memoryStream, encryptor, CryptoStreamMode.Write))
-                    using (var streamWriter = new StreamWriter(cryptoStream))
-                    {
-                        // Send the data through the StreamWriter, through the CryptoStream, to the underlying MemoryStream
-                        streamWriter.Write(plainText);
-                    }
-
-                    // Return the encrypted bytes from the memory stream, in Base64 form so we can send it right to a database (if we want).
-                    var cipherTextBytes = memoryStream.ToArray();
-                    Array.Resize(ref saltBytes, saltBytes.Length + cipherTextBytes.Length);
-                    Array.Copy(cipherTextBytes, 0, saltBytes, _saltSize, cipherTextBytes.Length);
-
-                    return Convert.ToBase64String(saltBytes);
-                }
-            }
+            // Return the encrypted bytes from the memory stream, in Base64 form so we can send it right to a database.
+            var cipherTextBytes = EncryptStream(plainText, bytes);
+            var array = CopyArray(bytes.Salt, cipherTextBytes, cipherTextBytes.Length);
+            return array;
         }
 
         /// <summary>
         /// Decrypts the ciphertext using the Key.
         /// </summary>
-        /// <param name="ciphertext">The ciphertext to decrypt.</param>
+        /// <param name="cipherText">The cipher text to decrypt.</param>
         /// <param name="key">The plain text encryption key.</param>
         /// <returns>The decrypted text.</returns>
-        public static string Decrypt(string ciphertext, string key)
+        [SuppressMessage("StyleCop.CSharp.NamingRules", "SA1305:FieldNamesMustNotUseHungarianNotation", 
+            Justification = "Reviewed. IV is an abbreviation. Suppression is OK here.")]
+        public static string Decrypt(string cipherText, string key)
         {
-            if (string.IsNullOrEmpty(ciphertext))
-                throw new ArgumentNullException("cipherText");
-            if (string.IsNullOrEmpty(key))
-                throw new ArgumentNullException("key");
+            Validate(cipherText, "cipherText");
+            Validate(key, "key");
 
             // Extract the salt from our ciphertext
-            var allTheBytes = Convert.FromBase64String(ciphertext);
-            var saltBytes = allTheBytes.Take(_saltSize).ToArray();
-            var ciphertextBytes = allTheBytes.Skip(_saltSize).Take(allTheBytes.Length - _saltSize).ToArray();
+            var allTheBytes = Convert.FromBase64String(cipherText);
+            var saltBytes = allTheBytes.Take(SaltSize).ToArray();
+            var ciphertextBytes = allTheBytes.Skip(SaltSize).Take(allTheBytes.Length - SaltSize).ToArray();
+            
+            var keys = DeriveBytes(key, saltBytes);
 
-            using (var keyDerivationFunction = new Rfc2898DeriveBytes(key, saltBytes))
+            return DecryptStream(ciphertextBytes, keys);
+        }
+
+        private static void Validate(string field, string fieldName)
+        {
+            if (string.IsNullOrEmpty(field))
+            {
+                throw new ArgumentNullException(fieldName);
+            }
+        }
+
+        private static string CopyArray(byte[] array, byte[] cipher, int length)
+        {
+            Array.Resize(ref array, array.Length + length);
+            Array.Copy(cipher, 0, array, SaltSize, length);
+            return Convert.ToBase64String(array);
+        }
+
+        private static DeriveResult DeriveBytes(string key)
+        {
+            using (var deriver = new Rfc2898DeriveBytes(key, SaltSize))
+            {
+                return new DeriveResult
+                    {
+                        Salt = deriver.Salt,
+                        Key = deriver.GetBytes(32),
+                        InitializationVector = deriver.GetBytes(16)
+                    };
+            }
+        }
+
+        private static DeriveResult DeriveBytes(string key, byte[] salt)
+        {
+            using (var deriver = new Rfc2898DeriveBytes(key, salt))
             {
                 // Derive the previous IV from the Key and Salt
-                var keyBytes = keyDerivationFunction.GetBytes(32);
-                var ivBytes = keyDerivationFunction.GetBytes(16);
-                
-                // Create a decrytor to perform the stream transform.
-                // Create the streams used for decryption.
-                // The default Cipher Mode is CBC and the Padding is PKCS7 which are both good
-                using (var aesManaged = new AesManaged())
-                using (var decryptor = aesManaged.CreateDecryptor(keyBytes, ivBytes))
-                using (var memoryStream = new MemoryStream(ciphertextBytes))
-                using (var cryptoStream = new CryptoStream(memoryStream, decryptor, CryptoStreamMode.Read))
-                using (var streamReader = new StreamReader(cryptoStream))
-                {
-                    // Return the decrypted bytes from the decrypting stream.
-                    return streamReader.ReadToEnd();
-                }
+                return new DeriveResult
+                    {
+                        Salt = salt,
+                        Key = deriver.GetBytes(32),
+                        InitializationVector = deriver.GetBytes(16)
+                    };
+            }
+        }
+
+        private static byte[] EncryptStream(string plainText, DeriveResult keys)
+        {
+            // Create an encryptor to perform the stream transform.
+            // Create the streams used for encryption. (Yes, we have 5 levels of IDisposable here!)
+            using (var aesManaged = new AesManaged())
+            using (var encryptor = aesManaged.CreateEncryptor(keys.Key, keys.InitializationVector))
+            using (var memoryStream = new MemoryStream())
+            using (var cryptoStream = new CryptoStream(memoryStream, encryptor, CryptoStreamMode.Write))
+            using (var streamWriter = new StreamWriter(cryptoStream))
+            {
+                // Send the data through the StreamWriter, through the CryptoStream, to the underlying MemoryStream
+                streamWriter.Write(plainText);
+
+                // Return the encrypted bytes from the memory stream, in Base64 form so we can send it right to a database (if we want).
+                var cipherTextBytes = memoryStream.ToArray();
+                return cipherTextBytes;
+            }
+        }
+
+        private static string DecryptStream(byte[] cipher, DeriveResult keys)
+        {
+            // Create a decrytor to perform the stream transform.
+            // Create the streams used for decryption.
+            // The default Cipher Mode is CBC and the Padding is PKCS7 which are both good
+            using (var aesManaged = new AesManaged())
+            using (var decryptor = aesManaged.CreateDecryptor(keys.Key, keys.InitializationVector))
+            using (var memoryStream = new MemoryStream(cipher))
+            using (var cryptoStream = new CryptoStream(memoryStream, decryptor, CryptoStreamMode.Read))
+            using (var streamReader = new StreamReader(cryptoStream))
+            {
+                // Return the decrypted bytes from the decrypting stream.
+                return streamReader.ReadToEnd();
             }
         }
     }
