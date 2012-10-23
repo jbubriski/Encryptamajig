@@ -1,10 +1,10 @@
 ﻿namespace Encryptamajig
 {
     using System;
-    using System.Diagnostics.CodeAnalysis;
     using System.IO;
     using System.Linq;
     using System.Security.Cryptography;
+    using System.Text;
 
     /// <summary>
     /// A simple wrapper to the AesManaged class and the AES algorithm.
@@ -15,6 +15,11 @@
     public class AesEncryptamajig
     {
         private static readonly int SaltSize = 32;
+
+        public static string Encrypt(string clearText, byte[] key)
+        {
+            return Encrypt(clearText, Convert.ToBase64String(key));
+        }
 
         /// <summary>
         /// Encrypts the plainText input using the given Key.
@@ -33,8 +38,18 @@
 
             // Return the encrypted bytes from the memory stream, in Base64 form so we can send it right to a database.
             var cipherTextBytes = EncryptStream(plainText, bytes);
-            var array = CopyArray(bytes.Salt, cipherTextBytes, cipherTextBytes.Length);
-            return array;
+            var array = AddSalt(bytes.Salt, cipherTextBytes);
+            return Convert.ToBase64String(array);
+
+            // var cipherTextBytes = memoryStream.ToArray();
+            // Array.Resize(ref saltBytes, saltBytes.Length + cipherTextBytes.Length);
+            // Array.Copy(cipherTextBytes, 0, saltBytes, _saltSize, cipherTextBytes.Length);
+
+        }
+
+        public static string Decrypt(string cipher, byte[] key)
+        {
+            return Decrypt(cipher, Convert.ToBase64String(key));
         }
 
         /// <summary>
@@ -43,10 +58,8 @@
         /// <param name="cipherText">The cipher text to decrypt.</param>
         /// <param name="key">The plain text encryption key.</param>
         /// <returns>The decrypted text.</returns>
-        [SuppressMessage("StyleCop.CSharp.NamingRules", "SA1305:FieldNamesMustNotUseHungarianNotation", 
-            Justification = "Reviewed. IV is an abbreviation. Suppression is OK here.")]
-        public static string Decrypt(string cipherText, string key)
-        {
+         public static string Decrypt(string cipherText, string key)
+         {
             Validate(cipherText, "cipherText");
             Validate(key, "key");
 
@@ -68,11 +81,12 @@
             }
         }
 
-        private static string CopyArray(byte[] array, byte[] cipher, int length)
+        private static byte[] AddSalt(byte[] salt, byte[] cipher)
         {
-            Array.Resize(ref array, array.Length + length);
-            Array.Copy(cipher, 0, array, SaltSize, length);
-            return Convert.ToBase64String(array);
+            var array = salt;
+            Array.Resize(ref array, salt.Length + cipher.Length);
+            Array.Copy(cipher, 0, array, SaltSize, cipher.Length);
+            return array;
         }
 
         private static DeriveResult DeriveBytes(string key)
@@ -95,7 +109,7 @@
                 // Derive the previous IV from the Key and Salt
                 return new DeriveResult
                     {
-                        Salt = salt,
+                        Salt = deriver.Salt,
                         Key = deriver.GetBytes(32),
                         InitializationVector = deriver.GetBytes(16)
                     };
@@ -114,8 +128,6 @@
             {
                 // Send the data through the StreamWriter, through the CryptoStream, to the underlying MemoryStream
                 streamWriter.Write(plainText);
-
-                // Return the encrypted bytes from the memory stream, in Base64 form so we can send it right to a database (if we want).
                 var cipherTextBytes = memoryStream.ToArray();
                 return cipherTextBytes;
             }
