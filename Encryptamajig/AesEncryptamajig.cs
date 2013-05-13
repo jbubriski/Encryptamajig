@@ -13,11 +13,11 @@
     /// </summary>
     public class AesEncryptamajig
     {
-        private static readonly int SaltSize = 32;
+        private const int SaltSize = 32;
 
         /// <summary>
         /// Encrypts the plainText input using the given Key.
-        /// A 128 bit random salt will be generated and prepended to the cipherText before it is base64 encoded.
+        /// A 256-bit random salt will be generated and prepended to the cipherText before it is base64 encoded.
         /// </summary>
         /// <param name="plainText">The plain text to encrypt.</param>
         /// <param name="key">The plain text encryption key.</param>
