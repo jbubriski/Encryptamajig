@@ -36,7 +36,7 @@ Make sure you are storing your key someplace safe.  If you're writing a web appi
 Do you want to know more? (All links via Wikipedia)
 
 - [Encryption](http://en.wikipedia.org/wiki/Encryption)
-- [Keys](http://en.wikipedia.org/wiki/Key_(cryptography))
+- [Keys](http://en.wikipedia.org/wiki/Key_\(cryptography\))
 - [Initialization Vectors](http://en.wikipedia.org/wiki/Initialization_vector)
 - [Block Cipher Modes](http://en.wikipedia.org/wiki/Block_cipher_modes_of_operation)
 - [AES](http://en.wikipedia.org/wiki/Advanced_Encryption_Standard)
