@@ -6,7 +6,7 @@ A simple wrapper to the .NET AES encryption algorithm functionality.
 
 ## But Why?
 
-> **"But John, there are so many encryption examples on the 'Net, why do we need another?  Can't I just role my own?"**
+> **"But John, there are so many encryption examples on the 'Net, why do we need another?  Can't I just roll my own?"**
 
 When you look at encryption examples online many are verbose, misleading, outdated, or **flat out insecure**.  By creating this project I hope to provide a single resource that myself and others can use to incoporate encryption into their .NET projects.
 
