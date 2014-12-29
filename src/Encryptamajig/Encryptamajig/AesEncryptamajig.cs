@@ -20,7 +20,7 @@
         public static readonly int KeyBitSize = 256;    // AES 256 bit key encryption
 
         // Preconfigured Password Key Derivation Parameters
-        public static readonly int SaltBitSize = 64;
+        public static readonly int SaltBitSize = 128;
         public static readonly int Iterations = 10000;
 
         /// <summary>
@@ -38,7 +38,7 @@
             if (string.IsNullOrEmpty(plainText))
                 throw new ArgumentNullException("plainText");
 
-            // Derive a new Salt and IV from the Key, using a 64 bit salt and 10,000 iterations
+            // Derive a new Salt and IV from the Key, using a 128 bit salt and 10,000 iterations
             using (var keyDerivationFunction = new Rfc2898DeriveBytes(key, SaltBitSize / 8, Iterations))
             using (var aesManaged = new AesManaged() { KeySize = KeyBitSize, BlockSize = BlockBitSize })
                 {
