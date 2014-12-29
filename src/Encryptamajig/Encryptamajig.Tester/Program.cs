@@ -19,9 +19,11 @@
             var encrypted = AesEncryptamajig.Encrypt(_plainText, _key);
             var roundtrip = AesEncryptamajig.Decrypt(encrypted, _key);
 
-            Debug.WriteLine(_plainText);
-            Debug.WriteLine(encrypted);
-            Debug.WriteLine(roundtrip);
+            Console.WriteLine(_plainText);
+            Console.WriteLine(encrypted);
+            Console.WriteLine(roundtrip);
+
+            Console.ReadLine();
         }
     }
 }
